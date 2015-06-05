@@ -139,7 +139,17 @@ object MimaSettings {
       exclude[MissingMethodProblem]("scalikejdbc.mapper.CodeGenerator.scalikejdbc$mapper$CodeGenerator$$toCamelCase"),
       exclude[MissingMethodProblem]("scalikejdbc.mapper.CodeGenerator.scalikejdbc$mapper$CodeGenerator$$toProperCase"),
       // since 2.2.7
-      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.roundBracket")
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.roundBracket"),
+      // ???
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.eq"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.gt"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.ge"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.lt"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.le"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.between"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.in"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.notIn"),
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.ne")
     )
   }
 
