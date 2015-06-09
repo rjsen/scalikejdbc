@@ -236,13 +236,13 @@ trait QueryDSLFeature { self: SQLInterpolationFeature with SQLSyntaxSupportFeatu
     def in[B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.in(columns, valueSeqs)}")
     }
-    def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def in[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.in(columns, valueSeqs)}")
     }
-    def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def in[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D, E)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.in(columns, valueSeqs)}")
     }
-    def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def in[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder, G: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D, E, G)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.in(columns, valueSeqs)}")
     }
 
@@ -253,13 +253,13 @@ trait QueryDSLFeature { self: SQLInterpolationFeature with SQLSyntaxSupportFeatu
     def notIn[B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.notIn(columns, valueSeqs)}")
     }
-    def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def notIn[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.notIn(columns, valueSeqs)}")
     }
-    def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def notIn[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D, E)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.notIn(columns, valueSeqs)}")
     }
-    def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): ConditionSQLBuilder[A] = {
+    def notIn[B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder, G: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(B, C, D, E, G)]): ConditionSQLBuilder[A] = {
       ConditionSQLBuilder[A](sqls"${sql} ${sqls.notIn(columns, valueSeqs)}")
     }
 
@@ -480,7 +480,7 @@ trait QueryDSLFeature { self: SQLInterpolationFeature with SQLSyntaxSupportFeatu
       val vs = sqls.csv(values.map(v => sqls"${v}"): _*)
       this.copy(sql = sqls"${sql} values (${vs})")
     }
-    def namedValues(columnsAndValues: (SQLSyntax, ParameterBinder)*): InsertSQLBuilder = {
+    def namedValues(columnsAndValues: (SQLSyntax, UnbindResult)*): InsertSQLBuilder = {
       val (cs, vs) = columnsAndValues.unzip
       columns(cs: _*).values(vs: _*)
     }
@@ -513,7 +513,7 @@ trait QueryDSLFeature { self: SQLInterpolationFeature with SQLSyntaxSupportFeatu
       with WhereSQLBuilder[UpdateOperation] {
 
     def set(sqlPart: SQLSyntax): UpdateSQLBuilder = this.copy(sql = sqls"${sql} set ${sqlPart}")
-    def set(tuples: (SQLSyntax, ParameterBinder)*): UpdateSQLBuilder = set(sqls.csv(tuples.map(each => sqls"${each._1} = ${each._2}"): _*))
+    def set(tuples: (SQLSyntax, UnbindResult)*): UpdateSQLBuilder = set(sqls.csv(tuples.map(each => sqls"${each._1} = ${each._2}"): _*))
 
     override def append(part: SQLSyntax): UpdateSQLBuilder = this.copy(sql = sqls"${sql} ${part}")
   }

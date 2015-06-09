@@ -149,7 +149,26 @@ object MimaSettings {
       exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.between"),
       exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.in"),
       exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.notIn"),
-      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.ne")
+      exclude[MissingMethodProblem]("scalikejdbc.QueryDSLFeature#ConditionSQLBuilder.ne"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.eq"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.ge"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.gt"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.le"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.lt"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.ne"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.in"),
+      exclude[IncompatibleMethTypeProblem]("scalikejdbc.interpolation.SQLSyntax.notIn"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.eq"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.ge"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.gt"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.le"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.lt"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.ne"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.in"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.notIn"),
+      exclude[MissingMethodProblem]("scalikejdbc.interpolation.SQLSyntax.between"),
+      exclude[MissingMethodProblem]("scalikejdbc.ParameterBinder.apply"),
+      exclude[MissingMethodProblem]("scalikejdbc.ParameterBinder.value")
     )
   }
 

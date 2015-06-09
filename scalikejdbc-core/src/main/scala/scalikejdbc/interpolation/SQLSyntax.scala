@@ -1,6 +1,6 @@
 package scalikejdbc.interpolation
 
-import scalikejdbc.{ TypeUnbinder, ParameterBinder }
+import scalikejdbc.{ UnbindResult, TypeUnbinder, ParameterBinder }
 
 /**
  * Value as a part of SQL syntax.
@@ -70,9 +70,17 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
 
   def isNull(column: SQLSyntax): SQLSyntax = sqls"${this} ${column} is null"
   def isNotNull(column: SQLSyntax): SQLSyntax = sqls"${this} ${column} is not null"
-  def between[A, B](column: SQLSyntax, a: A, b: B)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B]): SQLSyntax = sqls"${this} ${column} between ${ev1(a)} and ${ev2(b)}"
-  def notBetween[A, B](column: SQLSyntax, a: A, b: B)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B]): SQLSyntax = sqls"${this} ${column} not between ${ev1(a)} and ${ev2(b)}"
 
+  def between[A, B, C](a: A, b: B, c: C)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = sqls"${this} ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
+  def notBetween[A, B, C](a: A, b: B, c: C)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = sqls"${this} not ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
+
+  def in(column: SQLSyntax, values: Seq[SQLSyntax]): SQLSyntax = {
+    if (values.isEmpty) {
+      sqls"${this} FALSE"
+    } else {
+      sqls"${this} ${column} in (${values})"
+    }
+  }
   def in[A](column: SQLSyntax, values: Seq[A])(implicit ev: TypeUnbinder[A]): SQLSyntax = {
     if (values.isEmpty) {
       sqls"${this} FALSE"
@@ -112,64 +120,64 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
     }
   }
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): SQLSyntax = {
+  def in[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3) => sqls"($v1, $v2, $v3)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)})" }: _*)
       val inClause = sqls"${column} in (${values})"
       sqls"${this} ${inClause}"
     }
   }
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): SQLSyntax = {
+  def notIn[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3) => sqls"($v1, $v2, $v3)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)})" }: _*)
       val inClause = sqls"${column} not in (${values})"
       sqls"${this} ${inClause}"
     }
   }
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): SQLSyntax = {
+  def in[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value}, ${columns._4.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3, v4) => sqls"($v1, $v2, $v3, $v4)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3, v4) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)}, ${ev4(v4)})" }: _*)
       val inClause = sqls"${column} in (${values})"
       sqls"${this} ${inClause}"
     }
   }
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): SQLSyntax = {
+  def notIn[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value}, ${columns._4.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3, v4) => sqls"($v1, $v2, $v3, $v4)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3, v4) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)}, ${ev4(v4)})" }: _*)
       val inClause = sqls"${column} not in (${values})"
       sqls"${this} ${inClause}"
     }
   }
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): SQLSyntax = {
+  def in[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D], ev5: TypeUnbinder[E]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value}, ${columns._4.value}, ${columns._5.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3, v4, v5) => sqls"($v1, $v2, $v3, $v4, $v5)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3, v4, v5) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)}, ${ev4(v4)}, ${ev5(v5)})" }: _*)
       val inClause = sqls"${column} in (${values})"
       sqls"${this} ${inClause}"
     }
   }
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): SQLSyntax = {
+  def notIn[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D], ev5: TypeUnbinder[E]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
       val column = SQLSyntax(s"(${columns._1.value}, ${columns._2.value}, ${columns._3.value}, ${columns._4.value}, ${columns._5.value})")
-      val values = csv(valueSeqs.map { case (v1, v2, v3, v4, v5) => sqls"($v1, $v2, $v3, $v4, $v5)" }: _*)
+      val values = csv(valueSeqs.map { case (v1, v2, v3, v4, v5) => sqls"(${ev1(v1)}, ${ev2(v2)}, ${ev3(v3)}, ${ev4(v4)}, ${ev5(v5)})" }: _*)
       val inClause = sqls"${column} not in (${values})"
       sqls"${this} ${inClause}"
     }
@@ -185,7 +193,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
 
   def stripMargin(marginChar: Char): SQLSyntax = new SQLSyntax(value.stripMargin(marginChar), parameters)
 
-  def ->[A](value: A)(implicit ev: TypeUnbinder[A]): (SQLSyntax, ParameterBinder) = (this, ev(value))
+  def ->[A](value: A)(implicit ev: TypeUnbinder[A]): (SQLSyntax, UnbindResult) = (this, ev(value))
 
 }
 
@@ -272,14 +280,14 @@ object SQLSyntax {
   def in[A: TypeUnbinder, B: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
   def notIn[A: TypeUnbinder, B: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn(columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(Any, Any, Any, Any, Any)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
   def in(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = SQLSyntax.empty.in(column, subQuery)
   def notIn(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = SQLSyntax.empty.notIn(column, subQuery)

@@ -3,16 +3,23 @@ package scalikejdbc
 import java.io.InputStream
 import java.sql.PreparedStatement
 import scalikejdbc.UnixTimeInMillisConverterImplicits._
+import scalikejdbc.interpolation.SQLSyntax
 import scala.language.experimental.macros
-//import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.blackbox.Context
+
+case class UnbindResult(value: Either[SQLSyntax, ParameterBinder])
+object UnbindResult {
+  def apply(value: ParameterBinder): UnbindResult = new UnbindResult(Right(value))
+  def apply(value: SQLSyntax): UnbindResult = new UnbindResult(Left(value))
+}
 
 trait TypeUnbinder[A] { self =>
 
-  def apply(value: A): ParameterBinder
+  def apply(value: A): UnbindResult
 
   def contramap[B](f: B => A): TypeUnbinder[B] = new TypeUnbinder[B] {
-    def apply(value: B): ParameterBinder = {
-      if (value == null) ParameterBinder.NullParameterBinder
+    def apply(value: B): UnbindResult = {
+      if (value == null) UnbindResult(ParameterBinder.NullParameterBinder)
       else self(f(value))
     }
   }
@@ -22,7 +29,7 @@ trait TypeUnbinder[A] { self =>
 object TypeUnbinder extends LowPriorityImplicitsTypeUnbinder1 {
 
   def apply[A](f: A => (PreparedStatement, Int) => Unit): TypeUnbinder[A] = new TypeUnbinder[A] {
-    def apply(value: A): ParameterBinder = {
+    def apply(value: A): UnbindResult = UnbindResult {
       if (value == null) ParameterBinder.NullParameterBinder
       else ParameterBinder(f(value))
     }
@@ -49,17 +56,19 @@ object TypeUnbinder extends LowPriorityImplicitsTypeUnbinder1 {
   implicit val jodaLocalDateTypeUnbinder: TypeUnbinder[org.joda.time.LocalDate] = sqlDateTypeUnbinder.contramap(_.toDate.toSqlDate)
   implicit val jodaLocalTimeTypeUnbinder: TypeUnbinder[org.joda.time.LocalTime] = sqlTimeTypeUnbinder.contramap(_.toSqlTime)
   implicit val inputStreamTypeUnbinder: TypeUnbinder[InputStream] = TypeUnbinder { v => (ps, idx) => ps.setBinaryStream(idx, v) }
-  implicit val nullTypeUnbinder: TypeUnbinder[Null] = new TypeUnbinder[Null] { def apply(value: Null) = ParameterBinder.NullParameterBinder }
-  implicit val noneTypeUnbinder: TypeUnbinder[None.type] = new TypeUnbinder[None.type] { def apply(value: None.type) = ParameterBinder.NullParameterBinder }
+  implicit val nullTypeUnbinder: TypeUnbinder[Null] = new TypeUnbinder[Null] { def apply(value: Null) = UnbindResult(ParameterBinder.NullParameterBinder) }
+  implicit val noneTypeUnbinder: TypeUnbinder[None.type] = new TypeUnbinder[None.type] { def apply(value: None.type) = UnbindResult(ParameterBinder.NullParameterBinder) }
+  implicit val sqlSyntaxUnbinder: TypeUnbinder[SQLSyntax] = new TypeUnbinder[SQLSyntax] { def apply(value: SQLSyntax) = UnbindResult(value) }
+  implicit val optionalSqlSyntaxUnbinder: TypeUnbinder[Option[SQLSyntax]] = new TypeUnbinder[Option[SQLSyntax]] { def apply(value: Option[SQLSyntax]) = UnbindResult(value getOrElse SQLSyntax.empty) }
 
 }
 
 trait LowPriorityImplicitsTypeUnbinder1 extends LowPriorityImplicitsTypeUnbinder0 {
 
   implicit def optionalTypeUnbinder[A](implicit ev: TypeUnbinder[A]): TypeUnbinder[Option[A]] = new TypeUnbinder[Option[A]] {
-    def apply(value: Option[A]): ParameterBinder = {
-      if (value == null) ParameterBinder.NullParameterBinder
-      else value.fold(ParameterBinder.NullParameterBinder)(ev.apply)
+    def apply(value: Option[A]): UnbindResult = {
+      if (value == null) UnbindResult(ParameterBinder.NullParameterBinder)
+      else value.fold(UnbindResult(ParameterBinder.NullParameterBinder))(ev.apply)
     }
   }
 
@@ -89,16 +98,16 @@ trait LowPriorityImplicitsTypeUnbinder1 extends LowPriorityImplicitsTypeUnbinder
 }
 
 trait LowPriorityImplicitsTypeUnbinder0 {
-  //  def anyTypeUnbinder[A]: TypeUnbinder[A] = macro TypeUnbinderMacro.any[A]
+  def anyTypeUnbinder[A]: TypeUnbinder[A] = macro TypeUnbinderMacro.any[A]
 }
 
 private[scalikejdbc] object TypeUnbinderMacro {
 
-  //  def any[A: c.WeakTypeTag](c: Context): c.Expr[TypeUnbinder[A]] = {
-  //    import c.universe._
-  //    val A = weakTypeTag[A].tpe
-  //    if (A.toString.startsWith("java.time.")) c.Expr[TypeUnbinder[A]](q"scalikejdbc.TypeUnbinder.jsr310TypeUnbinder[$A]")
-  //    else c.abort(c.enclosingPosition, s"Could not find an implicit value of the TypeUnbinder[$A].")
-  //  }
+  def any[A: c.WeakTypeTag](c: Context): c.Expr[TypeUnbinder[A]] = {
+    import c.universe._
+    val A = weakTypeTag[A].tpe
+    if (A.toString.startsWith("java.time.")) c.Expr[TypeUnbinder[A]](q"scalikejdbc.TypeUnbinder.jsr310TypeUnbinder[$A]")
+    else c.abort(c.enclosingPosition, s"Could not find an implicit value of the TypeUnbinder[$A].")
+  }
 
 }

@@ -111,7 +111,7 @@ class SQLSyntaxSpec extends FlatSpec with Matchers {
   }
 
   it should "have #in with empty" in {
-    val s = SQLSyntax.in(sqls"id", Seq())
+    val s = SQLSyntax.in(sqls"id", Seq[Any]())
     s.value should equal(" FALSE")
     s.parameters should equal(Seq())
   }
