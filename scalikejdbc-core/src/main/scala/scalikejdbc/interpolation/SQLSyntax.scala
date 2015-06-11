@@ -1,6 +1,6 @@
 package scalikejdbc.interpolation
 
-import scalikejdbc.{ UnbindResult, TypeUnbinder, ParameterBinder }
+import scalikejdbc.{ ParameterBinderFactory, ParameterBinder }
 
 /**
  * Value as a part of SQL syntax.
@@ -51,44 +51,37 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
 
   def roundBracket(inner: SQLSyntax) = sqls"$this ($inner)"
 
-  def eq[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = {
+  def eq[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = {
     value match {
       case null | None => sqls"${this} ${column} is null"
       case _ => sqls"${this} ${column} = ${ev(value)}"
     }
   }
-  def ne[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = {
+  def ne[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = {
     value match {
       case null | None => sqls"${this} ${column} is not null"
       case _ => sqls"${this} ${column} <> ${ev(value)}"
     }
   }
-  def gt[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = sqls"${this} ${column} > ${ev(value)}"
-  def ge[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = sqls"${this} ${column} >= ${ev(value)}"
-  def lt[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = sqls"${this} ${column} < ${ev(value)}"
-  def le[A](column: SQLSyntax, value: A)(implicit ev: TypeUnbinder[A]): SQLSyntax = sqls"${this} ${column} <= ${ev(value)}"
+  def gt[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = sqls"${this} ${column} > ${ev(value)}"
+  def ge[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = sqls"${this} ${column} >= ${ev(value)}"
+  def lt[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = sqls"${this} ${column} < ${ev(value)}"
+  def le[A](column: SQLSyntax, value: A)(implicit ev: ParameterBinderFactory[A]): SQLSyntax = sqls"${this} ${column} <= ${ev(value)}"
 
   def isNull(column: SQLSyntax): SQLSyntax = sqls"${this} ${column} is null"
   def isNotNull(column: SQLSyntax): SQLSyntax = sqls"${this} ${column} is not null"
 
-  def between[A, B, C](a: A, b: B, c: C)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = sqls"${this} ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
-  def notBetween[A, B, C](a: A, b: B, c: C)(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = sqls"${this} not ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
+  def between[A, B, C](a: A, b: B, c: C)(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C]): SQLSyntax = sqls"${this} ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
+  def notBetween[A, B, C](a: A, b: B, c: C)(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C]): SQLSyntax = sqls"${this} not ${ev1(a)} between ${ev2(b)} and ${ev3(c)}"
 
-  def in(column: SQLSyntax, values: Seq[SQLSyntax]): SQLSyntax = {
-    if (values.isEmpty) {
-      sqls"${this} FALSE"
-    } else {
-      sqls"${this} ${column} in (${values})"
-    }
-  }
-  def in[A](column: SQLSyntax, values: Seq[A])(implicit ev: TypeUnbinder[A]): SQLSyntax = {
+  def in[A](column: SQLSyntax, values: Seq[A])(implicit ev: ParameterBinderFactory[A]): SQLSyntax = {
     if (values.isEmpty) {
       sqls"${this} FALSE"
     } else {
       sqls"${this} ${column} in (${values.map(ev.apply)})"
     }
   }
-  def notIn[A](column: SQLSyntax, values: Seq[A])(implicit ev: TypeUnbinder[A]): SQLSyntax = {
+  def notIn[A](column: SQLSyntax, values: Seq[A])(implicit ev: ParameterBinderFactory[A]): SQLSyntax = {
     if (values.isEmpty) {
       sqls"${this} TRUE"
     } else {
@@ -99,7 +92,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
   def in(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = sqls"${this} ${column} in (${subQuery})"
   def notIn(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = sqls"${this} ${column} not in (${subQuery})"
 
-  def in[A, B](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B]): SQLSyntax = {
+  def in[A, B](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
@@ -109,7 +102,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
       sqls"${this} ${inClause}"
     }
   }
-  def notIn[A, B](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B]): SQLSyntax = {
+  def notIn[A, B](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
@@ -120,7 +113,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
     }
   }
 
-  def in[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = {
+  def in[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
@@ -130,7 +123,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
       sqls"${this} ${inClause}"
     }
   }
-  def notIn[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C]): SQLSyntax = {
+  def notIn[A, B, C](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
@@ -141,7 +134,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
     }
   }
 
-  def in[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D]): SQLSyntax = {
+  def in[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C], ev4: ParameterBinderFactory[D]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
@@ -151,7 +144,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
       sqls"${this} ${inClause}"
     }
   }
-  def notIn[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D]): SQLSyntax = {
+  def notIn[A, B, C, D](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C], ev4: ParameterBinderFactory[D]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
@@ -162,7 +155,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
     }
   }
 
-  def in[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D], ev5: TypeUnbinder[E]): SQLSyntax = {
+  def in[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C], ev4: ParameterBinderFactory[D], ev5: ParameterBinderFactory[E]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} FALSE"
     } else {
@@ -172,7 +165,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
       sqls"${this} ${inClause}"
     }
   }
-  def notIn[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: TypeUnbinder[A], ev2: TypeUnbinder[B], ev3: TypeUnbinder[C], ev4: TypeUnbinder[D], ev5: TypeUnbinder[E]): SQLSyntax = {
+  def notIn[A, B, C, D, E](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)])(implicit ev1: ParameterBinderFactory[A], ev2: ParameterBinderFactory[B], ev3: ParameterBinderFactory[C], ev4: ParameterBinderFactory[D], ev5: ParameterBinderFactory[E]): SQLSyntax = {
     if (valueSeqs.isEmpty) {
       sqls"${this} TRUE"
     } else {
@@ -193,7 +186,7 @@ class SQLSyntax private[scalikejdbc] (val value: String, val parameters: Seq[Any
 
   def stripMargin(marginChar: Char): SQLSyntax = new SQLSyntax(value.stripMargin(marginChar), parameters)
 
-  def ->[A](value: A)(implicit ev: TypeUnbinder[A]): (SQLSyntax, UnbindResult) = (this, ev(value))
+  def ->[A](value: A)(implicit ev: ParameterBinderFactory[A]): (SQLSyntax, ParameterBinder) = (this, ev(value))
 
 }
 
@@ -262,32 +255,32 @@ object SQLSyntax {
   val where: SQLSyntax = SQLSyntax.empty.where
   def where(where: SQLSyntax): SQLSyntax = SQLSyntax.empty.where(where)
 
-  def eq[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.eq(column, value)
-  def ne[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.ne(column, value)
-  def gt[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.gt(column, value)
-  def ge[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.ge(column, value)
-  def lt[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.lt(column, value)
-  def le[A: TypeUnbinder](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.le(column, value)
+  def eq[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.eq(column, value)
+  def ne[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.ne(column, value)
+  def gt[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.gt(column, value)
+  def ge[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.ge(column, value)
+  def lt[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.lt(column, value)
+  def le[A: ParameterBinderFactory](column: SQLSyntax, value: A): SQLSyntax = SQLSyntax.empty.le(column, value)
 
   def isNull(column: SQLSyntax): SQLSyntax = SQLSyntax.empty.isNull(column)
   def isNotNull(column: SQLSyntax): SQLSyntax = SQLSyntax.empty.isNotNull(column)
-  def between[A: TypeUnbinder, B: TypeUnbinder](column: SQLSyntax, a: A, b: B): SQLSyntax = SQLSyntax.empty.between(column, a, b)
-  def notBetween[A: TypeUnbinder, B: TypeUnbinder](column: SQLSyntax, a: A, b: B): SQLSyntax = SQLSyntax.empty.notBetween(column, a, b)
+  def between[A: ParameterBinderFactory, B: ParameterBinderFactory](column: SQLSyntax, a: A, b: B): SQLSyntax = SQLSyntax.empty.between(column, a, b)
+  def notBetween[A: ParameterBinderFactory, B: ParameterBinderFactory](column: SQLSyntax, a: A, b: B): SQLSyntax = SQLSyntax.empty.notBetween(column, a, b)
 
-  def in[A: TypeUnbinder](column: SQLSyntax, values: Seq[A]): SQLSyntax = SQLSyntax.empty.in(column, values)
-  def notIn[A: TypeUnbinder](column: SQLSyntax, values: Seq[A]): SQLSyntax = SQLSyntax.empty.notIn(column, values)
+  def in[A: ParameterBinderFactory](column: SQLSyntax, values: Seq[A]): SQLSyntax = SQLSyntax.empty.in(column, values)
+  def notIn[A: ParameterBinderFactory](column: SQLSyntax, values: Seq[A]): SQLSyntax = SQLSyntax.empty.notIn(column, values)
 
-  def in[A: TypeUnbinder, B: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn[A: TypeUnbinder, B: TypeUnbinder](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: ParameterBinderFactory, B: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: ParameterBinderFactory, B: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory, D: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory, D: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
-  def in[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
-  def notIn[A: TypeUnbinder, B: TypeUnbinder, C: TypeUnbinder, D: TypeUnbinder, E: TypeUnbinder](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
+  def in[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory, D: ParameterBinderFactory, E: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.in(columns, valueSeqs)
+  def notIn[A: ParameterBinderFactory, B: ParameterBinderFactory, C: ParameterBinderFactory, D: ParameterBinderFactory, E: ParameterBinderFactory](columns: (SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax, SQLSyntax), valueSeqs: Seq[(A, B, C, D, E)]): SQLSyntax = SQLSyntax.empty.notIn(columns, valueSeqs)
 
   def in(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = SQLSyntax.empty.in(column, subQuery)
   def notIn(column: SQLSyntax, subQuery: SQLSyntax): SQLSyntax = SQLSyntax.empty.notIn(column, subQuery)
