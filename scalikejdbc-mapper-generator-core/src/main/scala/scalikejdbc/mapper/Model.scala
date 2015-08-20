@@ -23,6 +23,8 @@ case class Model(url: String, username: String, password: String) {
     isAutoIncrement == "YES" || isAutoIncrement == "Y"
   } catch { case e: Exception => false }
 
+  private def columnDefault(implicit rs: WrappedResultSet): Option[String] = rs.stringOpt("COLUMN_DEF")
+
   private[this] def listAllTables(schema: String): Seq[String] = {
     val catalog = null
     val _schema = if (schema == null || schema.size == 0) null else schema
@@ -41,10 +43,11 @@ case class Model(url: String, username: String, password: String) {
   def table(schema: String = null, tableName: String): Option[Table] = {
     val catalog = null
     val _schema = if (schema == null || schema.size == 0) null else schema
+
     DB readOnlyWithConnection { conn =>
       val meta = conn.getMetaData
       new RSTraversable(meta.getColumns(catalog, _schema, tableName, "%"))
-        .map { implicit rs => Column(columnName, columnDataType, isNotNull, isAutoIncrement) }
+        .map { implicit rs => Column(columnName, columnDataType, isNotNull, isAutoIncrement, columnDefault) }
         .toList.distinct match {
           case Nil => None
           case allColumns =>
@@ -56,6 +59,19 @@ case class Model(url: String, username: String, password: String) {
               primaryKeyColumns = {
                 new RSTraversable(meta.getPrimaryKeys(catalog, _schema, tableName))
                   .flatMap { implicit rs => allColumns.find(column => column.name == columnName) }
+                  .toList.distinct
+              },
+              uniqueKeyColumns = {
+                new RSTraversable(meta.getIndexInfo(catalog, _schema, tableName, true, false))
+                  .map { implicit rs => rs.string("INDEX_NAME") -> allColumns.find(column => column.name == columnName) }
+                  .filter(_._2.nonEmpty)
+                  .groupBy(_._1)
+                  .map(_._2.map(_._2.get).toList)
+                  .toList.distinct
+              },
+              foreignKeyColumns = {
+                new RSTraversable(meta.getImportedKeys(catalog, _schema, tableName))
+                  .flatMap { implicit rs => allColumns.find(column => column.name == rs.string("FKCOLUMN_NAME")) }
                   .toList.distinct
               }
             ))

@@ -5,5 +5,7 @@ case class Table(
   allColumns: List[Column],
   autoIncrementColumns: List[Column],
   primaryKeyColumns: List[Column],
+  uniqueKeyColumns: List[List[Column]],
+  foreignKeyColumns: List[Column],
   schema: Option[String] = None)
 

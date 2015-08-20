@@ -42,6 +42,9 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
     val Ref = "Ref"
     val Struct = "Struct"
     val BigDecimal = "BigDecimal" // scala.math.BigDecimal
+
+    val primitive = Set(Long, Byte, Int, Short, Float, Double)
+    val stringLike = Set(String, DateTime, LocalDate, LocalTime)
   }
 
   case class IndentGenerator(i: Int) {
@@ -144,6 +147,27 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
       case _ => "null"
     }
 
+    lazy val defaultInScala: String = {
+      val defaultValue = underlying.default.flatMap { d =>
+        if (TypeName.primitive.contains(rawTypeInScala)) Some(s"$d") else {
+          if (rawTypeInScala == TypeName.BigDecimal) {
+            Some(s"""BigDecimal("$d")""")
+          } else if (rawTypeInScala == TypeName.Boolean) {
+            Some(if (d == "0") "false" else "true")
+          } else if (TypeName.stringLike.contains(rawTypeInScala)) {
+            Some(s""""$d"""")
+          } else {
+            None
+          }
+        }
+      }
+      if (underlying.isNotNull) {
+        defaultValue.map(d => s" = $d").getOrElse("")
+      } else {
+        defaultValue.map(d => s" = Some($d)").getOrElse(" = None")
+      }
+    }
+
     private[CodeGenerator] def isAny: Boolean = rawTypeInScala == TypeName.Any
   }
 
@@ -200,8 +224,9 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
     val defaultAutoSession = if (config.defaultAutoSession) s" = ${className}.autoSession" else ""
 
     if (config.caseClassOnly || table.allColumns.size <= 22) {
-      val constructorArgs = table.allColumns.map {
-        c => 1.indent + c.nameInScala + ": " + c.typeInScala + (if (c.isNotNull) "" else " = None")
+      val constructorArgs = table.allColumns.map { c =>
+        val default = c.default
+        1.indent + c.nameInScala + ": " + c.typeInScala + c.defaultInScala
       }.mkString("," + eol)
 
       s"""case class ${className}(
@@ -216,7 +241,7 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
     } else {
 
       val constructorArgs1 = table.allColumns.map {
-        c => 1.indent + "val " + c.nameInScala + ": " + c.typeInScala + (if (c.isNotNull) "" else " = None")
+        c => 1.indent + "val " + c.nameInScala + ": " + c.typeInScala + c.defaultInScala
       }.mkString(comma + eol)
       val copyArgs = table.allColumns.map {
         c => 2.indent + c.nameInScala + ": " + c.typeInScala + " = this." + c.nameInScala
@@ -253,6 +278,8 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
 
     val allColumns = table.allColumns
     val pkColumns = if (table.primaryKeyColumns.size == 0) allColumns else table.primaryKeyColumns
+    val uniqueKeys = table.uniqueKeyColumns
+    val fkColumns = table.foreignKeyColumns
 
     val interpolationMapper = {
       if (config.autoConstruct) {
@@ -329,7 +356,7 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
       // def create(
       1.indent + s"def create(" + eol +
         // id: Long, name: Option[String] = None)(implicit session DBSession = autoSession): ClassName = {
-        createColumns.map { c => 2.indent + c.nameInScala + ": " + c.typeInScala + (if (c.isNotNull) "" else " = None") }.mkString(comma + eol) +
+        createColumns.map { c => 2.indent + c.nameInScala + ": " + c.typeInScala + c.defaultInScala }.mkString(comma + eol) +
         ")(implicit session: DBSession" + defaultAutoSession + "): " + className + " = {" + eol +
         // val generatedKey =
         2.indent + table.autoIncrementColumns.headOption.map(_ => "val generatedKey = ").getOrElse("") +
@@ -494,19 +521,69 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
           pkColumns.map(pk => s".eq(${syntaxName}.${pk.nameInScala}, ${pk.nameInScala})").mkString(".and")
       }
 
+      val uniqueParts = uniqueKeys.map { uniqueColumns =>
+        val uArgsPart = uniqueColumns.map(uk => uk.nameInScala + ": " + uk.typeInScala).mkString(", ")
+        val uWherePart = config.template match {
+          case GeneratorTemplate.interpolation =>
+            uniqueColumns.map(uk => s"$${${syntaxName}.${uk.nameInScala}} = $${${uk.nameInScala}}").mkString(" and ")
+          case GeneratorTemplate.queryDsl =>
+            uniqueColumns.map(uk => s".eq(${syntaxName}.${uk.nameInScala}, ${uk.nameInScala})").mkString(".and")
+        }
+        (uArgsPart, uWherePart)
+      }.filter(_._1 != argsPart)
+
       (config.template match {
         case GeneratorTemplate.interpolation =>
           s"""  def find(${argsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
             |    sql\"\"\"select $${${syntaxName}.result.*} from $${${className} as ${syntaxName}} where ${wherePart}\"\"\"
             |      .map(${className}(${syntaxName}.resultName)).single.apply()
-            |  }"""
+            |  }""" + eol +
+            uniqueParts.map {
+              case (uArgsPart, uWherePart) =>
+                s"""
+                |  def find(${uArgsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
+                |    sql\"\"\"select $${${syntaxName}.result.*} from $${${className} as ${syntaxName}} where ${uWherePart}\"\"\"
+                |      .map(${className}(${syntaxName}.resultName)).single.apply()
+                |  }"""
+            }.mkString(eol)
         case GeneratorTemplate.queryDsl =>
           s"""  def find(${argsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
             |    withSQL {
             |      select.from(${className} as ${syntaxName}).where${wherePart}
             |    }.map(${className}(${syntaxName}.resultName)).single.apply()
-            |  }"""
+            |  }""" + eol +
+            uniqueParts.map {
+              case (uArgsPart, uWherePart) =>
+                s"""
+                |  def find(${uArgsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
+                |    withSQL {
+                |      select.from(${className} as ${syntaxName}).where${uWherePart}
+                |    }.map(${className}(${syntaxName}.resultName)).single.apply()
+                |  }"""
+            }.mkString(eol)
       }).stripMargin + eol
+    }
+
+    val fkFindMethods = {
+      fkColumns.map { fkColumn =>
+        val methodName = s"findAllBy${fkColumn.nameInScala.capitalize}"
+        val argsPart = fkColumn.nameInScala + ": " + fkColumn.typeInScala
+        (config.template match {
+          case GeneratorTemplate.interpolation =>
+            val wherePart = s"$${${syntaxName}.${fkColumn.nameInScala}} = $${${fkColumn.nameInScala}}"
+            s"""  def ${methodName}(${argsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
+            |    sql\"\"\"select $${${syntaxName}.result.*} from $${${className} as ${syntaxName}} where ${wherePart}\"\"\"
+            |      .map(${className}(${syntaxName}.resultName)).single.apply()
+            |  }"""
+          case GeneratorTemplate.queryDsl =>
+            val wherePart = s".eq(${syntaxName}.${fkColumn.nameInScala}, ${fkColumn.nameInScala})"
+            s"""  def ${methodName}(${argsPart})(implicit session: DBSession$defaultAutoSession): Option[${className}] = {
+            |    withSQL {
+            |      select.from(${className} as ${syntaxName}).where${wherePart}
+            |    }.map(${className}(${syntaxName}.resultName)).single.apply()
+            |  }"""
+        }).stripMargin
+      }.mkString(eol) + eol
     }
 
     val interpolationFindByMethod = {
@@ -684,6 +761,8 @@ class CodeGenerator(table: Table, specifiedClassName: Option[String] = None)(imp
       autoSession +
       eol +
       findMethod +
+      eol +
+      fkFindMethods +
       eol +
       findAllMethod +
       eol +
